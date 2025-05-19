@@ -3,29 +3,42 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { text, to } = req.body;
+  const { text, toLanguages = [] } = req.body;
+
+  if (!text || !toLanguages.length) {
+    return res.status(400).json({ error: 'Missing text or toLanguages' });
+  }
 
   try {
-    const response = await fetch('https://lecto.ai/api/v1/translate/text', {
+    const params = new URLSearchParams();
+    params.append('from', 'en'); // set your source language or make dynamic
+
+    toLanguages.forEach((lang) => {
+      params.append('to', lang);
+    });
+
+    // Lecto expects multiple texts by repeating "texts" param
+    // Here just sending one text but you can adapt for array
+    params.append('texts', text);
+
+    const response = await fetch('https://lecto-translation.p.rapidapi.com/v1/translate/text', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.LECTO_API_KEY}`,
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-rapidapi-host': 'lecto-translation.p.rapidapi.com',
+        'x-rapidapi-key': process.env.LECTO_API_KEY,
       },
-      body: JSON.stringify({
-        texts: [text],
-        to,
-      }),
+      body: params.toString(),
     });
 
     const data = await response.json();
 
-    if (!data?.translations?.[0]?.text) {
-      return res.status(500).json({ error: 'Invalid response from Lecto' });
+    if (!data.translations) {
+      return res.status(500).json({ error: 'Invalid response from Lecto', details: data });
     }
 
-    res.status(200).json({ translation: data.translations[0].text });
-  } catch (err) {
-    res.status(500).json({ error: 'Translation failed', details: err.message });
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Translation failed', details: error.message });
   }
 }

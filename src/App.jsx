@@ -80,25 +80,26 @@ const translateText = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: selectedText,
-        to: targetLanguage,
+        toLanguages: [targetLanguage], // can send multiple like ['es','de']
       }),
     });
 
     const data = await response.json();
 
-    if (data.translation) {
-      setTranslatedText(data.translation);
+    if (data.translations?.[0]?.translated?.[0]) {
+      setTranslatedText(data.translations[0].translated[0]);
     } else {
-      throw new Error(data.error || 'Translation failed');
+      throw new Error('No translation found');
     }
   } catch (err) {
     setError('Translation failed. Please try again later.');
     setTranslatedText(`[Unable to translate: ${selectedText}]`);
-    console.error('Lecto error:', err.message);
+    console.error(err);
   }
 
   setIsLoading(false);
 };
+
 
 
 
